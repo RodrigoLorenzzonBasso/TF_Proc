@@ -61,22 +61,141 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+#define pino_rs_0   GPIOA->BSRR = 1<<(16+9)  
+#define pino_rs_1		GPIOA->BSRR = 1<<9
+#define pino_e_0		GPIOC->BSRR = 1<<(16+7)
+#define pino_e_1		GPIOC->BSRR = 1<<7
+
+#define cursor_on 	 0x0c
+#define cursor_off   0x0e
+#define cursor_blink 0x0f
+
 struct Control{
 	
 	float temp;
 	float umid;
 	
 	char str[60];
+		
+	int hora, min, seg;
+	int dia, mes, ano;
 	
 }c;
 
 float le_temperatura(void);
 float le_umidade(void);
+void renderiza_relogio(void);
+
+void uDelay(void)
+{
+  int x=10;
+	
+  while(x) x--;
+}
+
+void delayUs(int tempo)
+{
+  while(tempo--) uDelay();
+}
+void lcd_send4bits(unsigned char dat)
+{
+	if((dat & (1 << 0)) == 0)
+		GPIOB->BRR = (1 << 5);
+	else
+		GPIOB->BSRR = (1 << 5);
+	
+	if((dat & (1 << 1)) == 0)
+		GPIOB->BRR = (1 << 4);
+	else
+		GPIOB->BSRR = (1 << 4);
+
+	if((dat & (1 << 2)) == 0)
+		GPIOB->BRR = (1 << 10);
+	else
+		GPIOB->BSRR = (1 << 10);
+	
+	if((dat & (1 << 3)) == 0)
+		GPIOA->BRR = (1 << 8);
+	else
+		GPIOA->BSRR = (1 << 8);	
+}
+void lcd_wrcom4(unsigned char com)
+{
+	lcd_send4bits(com);
+	pino_rs_0;
+	pino_e_1;
+	delayUs(5);
+	pino_e_0;
+	HAL_Delay(5);
+}
+void lcd_wrcom(unsigned char com)
+{
+	lcd_send4bits(com/0x10);
+	pino_rs_0;
+	pino_e_1;
+	delayUs(5);
+	pino_e_0;
+	
+	lcd_send4bits(com%0x10);
+	pino_rs_0;
+	pino_e_1;
+	delayUs(5);
+	pino_e_0;
+	
+	HAL_Delay(5);
+}
+void lcd_wrchar(unsigned char ch)
+{
+	lcd_send4bits(ch/0x10);
+	pino_rs_1;
+	pino_e_1;
+	delayUs(5);
+	pino_e_0;
+	
+	lcd_send4bits(ch % 0x10);
+	pino_rs_1;
+	pino_e_1;
+	delayUs(5);
+	pino_e_0;
+	
+	HAL_Delay(5);
+}
+void lcd_init(unsigned char cursor)
+{
+	lcd_wrcom4(3);
+  lcd_wrcom4(3);
+  lcd_wrcom4(3);
+  lcd_wrcom4(2);
+
+  lcd_wrcom(0x28);
+  lcd_wrcom(cursor);
+  lcd_wrcom(0x06);
+  lcd_wrcom(0x01);
+
+}
+void lcd_goto(unsigned char x, unsigned char y)
+{
+  if(x<16)
+  {
+    if(y==0) lcd_wrcom(0x80+x);
+    if(y==1) lcd_wrcom(0xc0+x);
+    if(y==2) lcd_wrcom(0x90+x);
+    if(y==3) lcd_wrcom(0xd0+x);
+  }
+}
+void lcd_wrstr(char * str)
+{
+	while((*str))
+	{
+		lcd_wrchar(*str++);
+	}
+}
+
 
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 UART_HandleTypeDef huart2;
 
@@ -88,7 +207,7 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_I2C1_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -105,6 +224,17 @@ static void MX_I2C1_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	
+	c.dia = 30;
+	c.mes = 3;
+	c.ano = 95;
+	
+	c.hora = 23;
+	c.min = 59;
+	c.seg = 45;
+	
+	int tick_i = 0;
+	int tick_f = 0;
 
   /* USER CODE END 1 */
 
@@ -127,8 +257,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_I2C1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
+	
+	lcd_init(cursor_off);
+	GPIOB->BSRR = (1 << 6); //backlight on
 
   /* USER CODE END 2 */
 
@@ -136,14 +269,19 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		tick_i = HAL_GetTick();
+		
 		c.temp = le_temperatura();
 		c.umid = le_umidade();
 		
-		sprintf(c.str,"Temp: %2.1f : Umid: %2.1f \n", c.temp, c.umid);
-		HAL_UART_Transmit(&huart2,(uint8_t*)c.str,strlen(c.str),10);
+		lcd_goto(0,0);
+		sprintf(c.str,"%2.1fC  %2.1f%%",c.temp,c.umid);
+		lcd_wrstr(c.str);
 		
-		HAL_Delay(500);
-		
+		renderiza_relogio();
+
+		tick_f = HAL_GetTick();
+		while(tick_f - tick_i < 1000) tick_f = HAL_GetTick();	
 		
     /* USER CODE END WHILE */
 
@@ -164,10 +302,8 @@ void SystemClock_Config(void)
 
   /**Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI48;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -185,9 +321,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -195,48 +330,48 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief I2C1 Initialization Function
+  * @brief I2C2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_I2C1_Init(void)
+static void MX_I2C2_Init(void)
 {
 
-  /* USER CODE BEGIN I2C1_Init 0 */
+  /* USER CODE BEGIN I2C2_Init 0 */
 
-  /* USER CODE END I2C1_Init 0 */
+  /* USER CODE END I2C2_Init 0 */
 
-  /* USER CODE BEGIN I2C1_Init 1 */
+  /* USER CODE BEGIN I2C2_Init 1 */
 
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x2000090E;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.Timing = 0x20303E5D;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
   {
     Error_Handler();
   }
   /**Configure Analogue filter 
   */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
   {
     Error_Handler();
   }
   /**Configure Digital filter 
   */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN I2C1_Init 2 */
+  /* USER CODE BEGIN I2C2_Init 2 */
 
-  /* USER CODE END I2C1_Init 2 */
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -291,7 +426,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -299,12 +440,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin PA8 PA9 */
+  GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_8|GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB10 PB4 PB5 PB6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 }
 
@@ -317,33 +472,33 @@ float le_temperatura(void)
 	int16_t  T1_out = 0, T0_out = 0,T_out= 0;
 	
 	dado[0] = 0x82;
-	HAL_I2C_Mem_Write(&hi2c1,0xBE,0x20,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Write(&hi2c2,0xBE,0x20,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
 	
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x32,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x33,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x32,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x33,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	T0_degC = dado[0]; 
 	T1_degC = dado[1];
 	
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x35,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x35,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
 	
 	T1_degC = ((dado[0] & 0xC) << 6) + T1_degC; 
 	T0_degC = ((dado[0]  & 3) << 8) + T0_degC;
 	T0_degC = T0_degC /8; 
 	T1_degC = T1_degC / 8;
 	
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x3C,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x3D,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x3C,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x3D,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	T0_out = (dado[1] << 8) + dado[0];
 	
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x3E,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x3F,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x3E,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x3F,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	T1_out = (dado[1] << 8) + dado[0];
 	
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x2A,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x2B,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x2A,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x2B,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	T_out = (dado[1] << 8) + dado[0];
 	
@@ -363,13 +518,13 @@ float le_umidade(void)
 	int16_t H_OUT;
 	
 	//escrever na memoria do sensor pra dar WAKE UP
-	HAL_I2C_Mem_Write(&hi2c1,0xBE,0x20,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Write(&hi2c2,0xBE,0x20,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
 	
 	//agora seguir roteiro
 	
 	//1 leitura dos registradores das posicoes 0x30 e 0x31
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x30,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x31,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x30,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x31,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	H0_rH_x2 = dado[0]/2;
 	H1_rH_x2 = dado[1]/2;
@@ -377,20 +532,20 @@ float le_umidade(void)
 	float h = 0;
 	
 	//3 leitura dos 0x36, 0x37
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x36,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x37,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x36,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x37,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	H0_T0_OUT = (dado[1] << 8) + dado[0];
 	
 	//4 leitura 0x3a, 0x3b
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x3a,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x3b,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x3a,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x3b,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	H1_T0_OUT = (dado[1] << 8) + dado[0];
 	
 	// 5 leitura do 0x28 e 0x29
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x28,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
-	HAL_I2C_Mem_Read(&hi2c1,0xBF,0x29,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x28,I2C_MEMADD_SIZE_8BIT,&dado[0],1,50);
+	HAL_I2C_Mem_Read(&hi2c2,0xBF,0x29,I2C_MEMADD_SIZE_8BIT,&dado[1],1,50);
 	
 	H_OUT = (dado[1] << 8) + dado[0];
 	
@@ -399,6 +554,45 @@ float le_umidade(void)
 	h = (((H1_rH_x2 - H0_rH_x2) * (H_OUT - H0_T0_OUT))/(H1_T0_OUT - H0_T0_OUT))+H0_rH_x2;
 		
 	return h;
+}
+
+void renderiza_relogio(void)
+{
+	lcd_goto(0,1);
+	sprintf(c.str,"%02d:%02d:%02d",c.hora,c.min,c.seg);
+	lcd_wrstr(c.str);
+	
+	lcd_goto(11,1);
+	sprintf(c.str,"%02d/%02d",c.dia,c.mes);
+	lcd_wrstr(c.str);
+	
+	c.seg++;
+	
+	if(c.seg == 60)
+	{
+		c.seg = 0;
+		c.min++;
+		if(c.min == 60)
+		{
+			c.min = 0;
+			c.hora++;
+			if(c.hora == 24)
+			{
+				c.hora = 0;
+				c.dia++;
+				if(c.dia == 31)
+				{
+					c.dia = 1;
+					c.mes++;
+					if(c.mes == 13)
+					{
+						c.mes = 1;
+						c.ano++;
+					}
+				}
+			}
+		}
+	}
 }
 
 /* USER CODE END 4 */
