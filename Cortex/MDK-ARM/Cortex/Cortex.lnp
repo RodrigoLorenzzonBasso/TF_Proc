@@ -1,0 +1,26 @@
+--cpu Cortex-M0
+"cortex\startup_stm32f072xb.o"
+"cortex\main.o"
+"cortex\stm32f0xx_it.o"
+"cortex\stm32f0xx_hal_msp.o"
+"cortex\stm32f0xx_hal_tim.o"
+"cortex\stm32f0xx_hal_tim_ex.o"
+"cortex\stm32f0xx_hal_uart.o"
+"cortex\stm32f0xx_hal_uart_ex.o"
+"cortex\stm32f0xx_hal_rcc.o"
+"cortex\stm32f0xx_hal_rcc_ex.o"
+"cortex\stm32f0xx_hal.o"
+"cortex\stm32f0xx_hal_i2c.o"
+"cortex\stm32f0xx_hal_i2c_ex.o"
+"cortex\stm32f0xx_hal_gpio.o"
+"cortex\stm32f0xx_hal_dma.o"
+"cortex\stm32f0xx_hal_cortex.o"
+"cortex\stm32f0xx_hal_pwr.o"
+"cortex\stm32f0xx_hal_pwr_ex.o"
+"cortex\stm32f0xx_hal_flash.o"
+"cortex\stm32f0xx_hal_flash_ex.o"
+"cortex\system_stm32f0xx.o"
+--library_type=microlib --strict --scatter "Cortex\Cortex.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "Cortex.map" -o Cortex\Cortex.axf
