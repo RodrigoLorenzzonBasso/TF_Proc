@@ -82,9 +82,14 @@ struct Control{
 	
 }c;
 
+char dados[300];
+
 float le_temperatura(void);
 float le_umidade(void);
 void renderiza_relogio(void);
+void testa_bluetooth(void);
+void print_serial(char * string);
+void envia_bluetooth(char * string);
 
 void uDelay(void)
 {
@@ -198,6 +203,7 @@ void lcd_wrstr(char * str)
 I2C_HandleTypeDef hi2c2;
 
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
@@ -208,6 +214,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C2_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -232,6 +239,9 @@ int main(void)
 	c.hora = 23;
 	c.min = 59;
 	c.seg = 45;
+	
+	c.temp = 10.0;
+	c.umid = 15.0;
 	
 	int tick_i = 0;
 	int tick_f = 0;
@@ -258,10 +268,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C2_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 	
 	lcd_init(cursor_off);
 	GPIOB->BSRR = (1 << 6); //backlight on
+	
+  testa_bluetooth();
 
   /* USER CODE END 2 */
 
@@ -274,11 +287,19 @@ int main(void)
 		c.temp = le_temperatura();
 		c.umid = le_umidade();
 		
+		sprintf(dados,"%2.1fC\n%2.1f%%\nEnviado\n\n",c.temp,c.umid);
+		
+		print_serial(dados);
+		envia_bluetooth(dados);
+		
+		/*
 		lcd_goto(0,0);
 		sprintf(c.str,"%2.1fC  %2.1f%%",c.temp,c.umid);
 		lcd_wrstr(c.str);
 		
-		renderiza_relogio();
+		renderiza_relogio();*/
+		
+		
 
 		tick_f = HAL_GetTick();
 		while(tick_f - tick_i < 1000) tick_f = HAL_GetTick();	
@@ -407,6 +428,41 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 9600;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
 
 }
 
@@ -593,6 +649,24 @@ void renderiza_relogio(void)
 			}
 		}
 	}
+}
+
+void testa_bluetooth(void)
+{
+	char str[30];
+	sprintf(str,"Hello World\n");
+	HAL_UART_Transmit(&huart3,(uint8_t*)str,strlen(str),100);
+	
+	/*sprintf(dados,"%2.1fC\n%2.1f%%\nEnviado\n\n",c.temp,c.umid);
+	HAL_UART_Transmit(&huart3,(uint8_t*)dados,strlen(dados),100);*/
+}
+void print_serial(char * string)
+{
+	HAL_UART_Transmit(&huart2,(uint8_t*)string,strlen(string),100);
+}
+void envia_bluetooth(char * string)
+{
+	HAL_UART_Transmit(&huart3,(uint8_t*)string,strlen(string),100);
 }
 
 /* USER CODE END 4 */
