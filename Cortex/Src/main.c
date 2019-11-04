@@ -1,41 +1,5 @@
 /* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  ** This notice applies to any and all portions of this file
-  * that are not between comment pairs USER CODE BEGIN and
-  * USER CODE END. Other portions of this file, whether 
-  * inserted by the user or by software development tools
-  * are owned by their respective copyright owners.
-  *
-  * COPYRIGHT(c) 2019 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************
-  */
+
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -70,12 +34,17 @@
 #define cursor_off   0x0e
 #define cursor_blink 0x0f
 
-struct Control{
+struct Controle{
 	
 	float temp;
 	float umid;
+  float ppm_gas;
+  char plota;
 	
 	char str[60];
+
+  char tempo_estado;
+  char estado;
 		
 	int hora, min, seg;
 	int dia, mes, ano;
@@ -86,10 +55,17 @@ char dados[300];
 
 float le_temperatura(void);
 float le_umidade(void);
-void renderiza_relogio(void);
+float le_gas(void);
 void testa_bluetooth(void);
 void print_serial(char * string);
 void envia_bluetooth(char * string);
+void transmite(void);
+
+void renderiza_tela1(void);
+void renderiza_relogio(void);
+void renderiza_sensores(void);
+void renderiza_tela2(void);
+void limpa_lcd(void);
 
 void uDelay(void)
 {
@@ -97,7 +73,6 @@ void uDelay(void)
 	
   while(x) x--;
 }
-
 void delayUs(int tempo)
 {
   while(tempo--) uDelay();
@@ -195,8 +170,6 @@ void lcd_wrstr(char * str)
 		lcd_wrchar(*str++);
 	}
 }
-
-
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -243,6 +216,11 @@ int main(void)
 	c.temp = 10.0;
 	c.umid = 15.0;
 	
+  c.tempo_estado = 3;
+  c.estado = 0;
+
+  c.plota = 'N';
+
 	int tick_i = 0;
 	int tick_f = 0;
 
@@ -286,21 +264,33 @@ int main(void)
 		
 		c.temp = le_temperatura();
 		c.umid = le_umidade();
-		
-		sprintf(dados,"%2.1fC\n%2.1f%%\nEnviado\n\n",c.temp,c.umid);
-		
-		print_serial(dados);
-		envia_bluetooth(dados);
-		
-		/*
-		lcd_goto(0,0);
-		sprintf(c.str,"%2.1fC  %2.1f%%",c.temp,c.umid);
-		lcd_wrstr(c.str);
-		
-		renderiza_relogio();*/
-		
-		
+    c.ppm_gas = le_gas();
 
+    transmite();
+
+    if(c.estado == 0)
+    {
+      renderiza_tela1();
+
+      c.tempo_estado--;
+      if(c.tempo_estado == 0)
+      {
+        c.tempo_estado = 3;
+        c.estado = 1;
+      }
+    }
+    else if(c.estado == 1)
+    {
+      renderiza_tela2();
+
+      c.tempo_estado--;
+      if(c.tempo_estado == 0)
+      {
+        c.tempo_estado = 3;
+        c.estado = 0;
+      }
+    }
+		
 		tick_f = HAL_GetTick();
 		while(tick_f - tick_i < 1000) tick_f = HAL_GetTick();	
 		
@@ -521,6 +511,12 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+void transmite(void)
+{
+  sprintf(dados,"%02.1f %02.1f %04.1f %c", c.temp, c.umid, c.ppm_gas, c.plota);
+  print_serial(dados);
+  envia_bluetooth(dados);
+}
 float le_temperatura(void)
 {
 	uint8_t dado[2];
@@ -560,7 +556,6 @@ float le_temperatura(void)
 	
 	return (((T1_degC - T0_degC) * (T_out - T0_out))/(T1_out - T0_out) + T0_degC);
 }
-
 float le_umidade(void)
 {
 	uint8_t dado[2];
@@ -611,7 +606,6 @@ float le_umidade(void)
 		
 	return h;
 }
-
 void renderiza_relogio(void)
 {
 	lcd_goto(0,1);
@@ -650,7 +644,6 @@ void renderiza_relogio(void)
 		}
 	}
 }
-
 void testa_bluetooth(void)
 {
 	char str[30];
@@ -668,7 +661,46 @@ void envia_bluetooth(char * string)
 {
 	HAL_UART_Transmit(&huart3,(uint8_t*)string,strlen(string),100);
 }
+void renderiza_tela1(void)
+{
+  renderiza_relogio();
+  renderiza_sensores();
+}
+void renderiza_sensores(void)
+{
+  lcd_goto(0,0);
+	sprintf(c.str,"%2.1fC  %2.1f%%",c.temp,c.umid);
+	lcd_wrstr(c.str);
+}
+void renderiza_tela2(void)
+{
+  sprintf(c.str,"%2.1f ppm",c.ppm_gas);
+  lcd_goto(0,1);
+  lcd_wrstr(c.str);
 
+  if(c.ppm_gas < 5.0)
+  {
+    sprintf(c.str,"Situacao Regular");
+    lcd_goto(0,0);
+    lcd_wrstr(c.str);  
+  }
+  else if(c.ppm_gas >= 5.0)
+  {
+    // algo
+  }
+}
+void limpa_lcd(void)
+{
+  sprintf(c.str,"               ");
+  lcd_goto(0,0);
+  lcd_wrstr(c.str);
+  lcd_goto(0,1);
+  lcd_wrstr(c.str);
+}
+float le_gas(void)
+{
+  return 0.0;
+}
 /* USER CODE END 4 */
 
 /**
