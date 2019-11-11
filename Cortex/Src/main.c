@@ -675,15 +675,17 @@ void renderiza_tela2(void)
   lcd_goto(0,1);
   lcd_wrstr(c.str);
 
-  if(c.ppm_gas < 5.0)
+  if(c.ppm_gas < 200.0)
   {
-    sprintf(c.str,"Situacao Regular");
+    sprintf(c.str, "Situacao Regular");
     lcd_goto(0,0);
     lcd_wrstr(c.str);  
   }
-  else if(c.ppm_gas >= 5.0)
+  else
   {
-    // algo
+    sprintf(c.str, "Situacao Anormal");
+    lcd_goto(0,0);
+    lcd_wrstr(c.str);
   }
 }
 void limpa_lcd(void)
