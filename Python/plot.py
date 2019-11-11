@@ -24,4 +24,5 @@ plt.figure()
 plt.plot(x,y_ppm)
 plt.title('Monóxido de Carbono no ar')
 plt.ylabel('Monóxido (ppm)')
-plt.figure()
+
+plt.show()
