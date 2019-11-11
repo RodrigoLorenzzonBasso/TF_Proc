@@ -19,6 +19,8 @@ def main():
 	sock.connect((target_address,port))
 	print("Conectado")
 
+	n = 1
+
 	while True:
 		data = sock.recv(data_size)
 		if data:
@@ -29,6 +31,10 @@ def main():
 				print(splitted)
 
 				with open("output.csv","a") as f:
+
+					f.write(n + ',')
+					n += 1
+
 					for word in splitted:
 						f.write(word)
 						if word != splitted(-1):

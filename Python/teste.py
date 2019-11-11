@@ -1,5 +1,5 @@
 
-data = "423 123 459 s ff"
+data = "24.5 50.0 1234.5"
 
 splitted = data.split(" ")
 

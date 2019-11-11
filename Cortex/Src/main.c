@@ -39,7 +39,6 @@ struct Controle{
 	float temp;
 	float umid;
   float ppm_gas;
-  char plota;
 	
 	char str[60];
 
@@ -218,8 +217,6 @@ int main(void)
 	
   c.tempo_estado = 3;
   c.estado = 0;
-
-  c.plota = 'N';
 
 	int tick_i = 0;
 	int tick_f = 0;
@@ -513,7 +510,7 @@ static void MX_GPIO_Init(void)
 
 void transmite(void)
 {
-  sprintf(dados,"%02.1f %02.1f %04.1f %c", c.temp, c.umid, c.ppm_gas, c.plota);
+  sprintf(dados,"%02.1f %02.1f %04.1f", c.temp, c.umid, c.ppm_gas);
   print_serial(dados);
   envia_bluetooth(dados);
 }
