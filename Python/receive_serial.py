@@ -1,7 +1,7 @@
 import serial
 
-data_size = 20
-port = 'COM1'
+data_size = 16
+port = 'COM4'
 baud_rate = 38400
 
 with open ("output.csv","w"):
@@ -17,11 +17,11 @@ with serial.Serial(port,baud_rate,timeout=None) as s:
         print(splitted)
 
         with open("output.csv","a") as f:
-            f.write(n + ',')
+            f.write(str(n) + ',')
             n += 1
             for word in splitted:
                 f.write(word)
-                if word != splitted(-1):
+                if word != splitted[-1]:
                     f.write(',')
             f.write("\n")
 
