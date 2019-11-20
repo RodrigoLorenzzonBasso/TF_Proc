@@ -172,6 +172,8 @@ void lcd_wrstr(char * str)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc;
+
 I2C_HandleTypeDef hi2c2;
 
 UART_HandleTypeDef huart2;
@@ -187,6 +189,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_ADC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -215,7 +218,7 @@ int main(void)
 	c.temp = 10.0;
 	c.umid = 15.0;
 	
-  c.tempo_estado = 3;
+  c.tempo_estado = 7;
   c.estado = 0;
 
 	int tick_i = 0;
@@ -244,6 +247,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C2_Init();
   MX_USART3_UART_Init();
+  MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 	
 	lcd_init(cursor_off);
@@ -274,6 +278,7 @@ int main(void)
       {
         c.tempo_estado = 3;
         c.estado = 1;
+				limpa_lcd();
       }
     }
     else if(c.estado == 1)
@@ -283,8 +288,9 @@ int main(void)
       c.tempo_estado--;
       if(c.tempo_estado == 0)
       {
-        c.tempo_estado = 3;
+        c.tempo_estado = 9;
         c.estado = 0;
+				limpa_lcd();
       }
     }
 		
@@ -310,8 +316,10 @@ void SystemClock_Config(void)
 
   /**Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
+  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
+  RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -335,6 +343,58 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC_Init(void)
+{
+
+  /* USER CODE BEGIN ADC_Init 0 */
+
+  /* USER CODE END ADC_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC_Init 1 */
+
+  /* USER CODE END ADC_Init 1 */
+  /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
+  */
+  hadc.Instance = ADC1;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc.Init.LowPowerAutoWait = DISABLE;
+  hadc.Init.LowPowerAutoPowerOff = DISABLE;
+  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.DiscontinuousConvMode = DISABLE;
+  hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc.Init.DMAContinuousRequests = DISABLE;
+  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  if (HAL_ADC_Init(&hadc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /**Configure for the selected ADC regular channel to be converted. 
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC_Init 2 */
+
+  /* USER CODE END ADC_Init 2 */
+
 }
 
 /**
@@ -510,7 +570,7 @@ static void MX_GPIO_Init(void)
 
 void transmite(void)
 {
-  sprintf(dados,"%02.1f %02.1f %04.1f", c.temp, c.umid, c.ppm_gas);
+  sprintf(dados,"%03.1f %03.1f %06.1f", c.temp, c.umid, c.ppm_gas);
   print_serial(dados);
   envia_bluetooth(dados);
 }
@@ -666,12 +726,12 @@ void renderiza_tela1(void)
 void renderiza_sensores(void)
 {
   lcd_goto(0,0);
-	sprintf(c.str,"%2.1fC  %2.1f%%",c.temp,c.umid);
+	sprintf(c.str,"%3.1fC  %3.1f%%",c.temp,c.umid);
 	lcd_wrstr(c.str);
 }
 void renderiza_tela2(void)
 {
-  sprintf(c.str,"%2.1f ppm",c.ppm_gas);
+  sprintf(c.str,"%6.1f ppm",c.ppm_gas);
   lcd_goto(0,1);
   lcd_wrstr(c.str);
 
@@ -690,7 +750,7 @@ void renderiza_tela2(void)
 }
 void limpa_lcd(void)
 {
-  sprintf(c.str,"               ");
+  sprintf(c.str,"                ");
   lcd_goto(0,0);
   lcd_wrstr(c.str);
   lcd_goto(0,1);
