@@ -758,7 +758,11 @@ void limpa_lcd(void)
 }
 float le_gas(void)
 {
-  return 0.0;
+	HAL_ADC_Start(&hadc);
+	HAL_ADC_PollForConversion(&hadc,50);
+	int leitura = HAL_ADC_GetValue(&hadc);
+  HAL_ADC_Stop(&hadc);
+	return leitura*0.134310134;
 }
 /* USER CODE END 4 */
 

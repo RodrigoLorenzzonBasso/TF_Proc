@@ -3,6 +3,8 @@
 "cortex\main.o"
 "cortex\stm32f0xx_it.o"
 "cortex\stm32f0xx_hal_msp.o"
+"cortex\stm32f0xx_hal_adc.o"
+"cortex\stm32f0xx_hal_adc_ex.o"
 "cortex\stm32f0xx_hal_i2c.o"
 "cortex\stm32f0xx_hal_i2c_ex.o"
 "cortex\stm32f0xx_hal_tim.o"

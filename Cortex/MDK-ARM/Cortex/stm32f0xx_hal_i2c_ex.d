@@ -19,6 +19,8 @@ cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal
 cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dma.h
 cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dma_ex.h
 cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_cortex.h
+cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_adc.h
+cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_adc_ex.h
 cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_flash.h
 cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_flash_ex.h
 cortex\stm32f0xx_hal_i2c_ex.o: ../Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_i2c.h
