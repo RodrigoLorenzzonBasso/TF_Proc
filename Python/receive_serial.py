@@ -1,7 +1,7 @@
 import serial
 
 data_size = 16
-port = 'COM13'
+port = 'COM5'
 baud_rate = 38400
 
 with open ("output.csv","w"):

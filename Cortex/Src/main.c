@@ -207,18 +207,18 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	
-	c.dia = 30;
-	c.mes = 3;
-	c.ano = 95;
+	c.dia = 29;
+	c.mes = 11;
+	c.ano = 19;
 	
-	c.hora = 23;
-	c.min = 59;
-	c.seg = 45;
+	c.hora = 19;
+	c.min = 10;
+	c.seg = 00;
 	
 	c.temp = 10.0;
 	c.umid = 15.0;
 	
-  c.tempo_estado = 7;
+  c.tempo_estado = 8;
   c.estado = 0;
 
 	int tick_i = 0;
@@ -253,7 +253,7 @@ int main(void)
 	lcd_init(cursor_off);
 	GPIOB->BSRR = (1 << 6); //backlight on
 	
-  testa_bluetooth();
+  //testa_bluetooth();
 
   /* USER CODE END 2 */
 
